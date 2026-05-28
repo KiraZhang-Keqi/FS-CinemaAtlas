@@ -153,6 +153,23 @@
               <div class="collection-list" id="linkedMemories" role="list"></div>
             </div>
           </div>
+
+          <div class="collection-section review-section">
+            <p class="meta-label">Film Journal</p>
+            <form id="reviewForm" class="editorial-form">
+              <p class="status-line compact" id="reviewFilmHint">Select a film above first.</p>
+              <label>
+                Your review
+                <textarea id="reviewText" rows="4" placeholder="What did this film leave you with? How did it change the way you see a place?" disabled></textarea>
+              </label>
+              <label>
+                Upload a photo
+                <input id="reviewPhotoFile" type="file" accept="image/*" disabled>
+              </label>
+              <button class="soft-button" type="submit" disabled>Save Review</button>
+            </form>
+            <div class="collection-list" id="reviewCollection" role="list"></div>
+          </div>
         </section>
       </aside>
     </section>

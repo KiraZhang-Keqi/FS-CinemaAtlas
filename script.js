@@ -55,6 +55,12 @@ const locateCinemaButton = document.getElementById("locateCinemaButton");
 const cinemaStatus = document.getElementById("cinemaStatus");
 const cinemaCollection = document.getElementById("cinemaCollection");
 
+const reviewForm = document.getElementById("reviewForm");
+const reviewText = document.getElementById("reviewText");
+const reviewPhotoFile = document.getElementById("reviewPhotoFile");
+const reviewFilmHint = document.getElementById("reviewFilmHint");
+const reviewCollection = document.getElementById("reviewCollection");
+
 const memoryModal = document.getElementById("memoryModal");
 const memoryVisual = document.getElementById("memoryVisual");
 const memoryMeta = document.getElementById("memoryMeta");
@@ -103,6 +109,7 @@ let memoryEntries = [];
 let filmMemoryLinks = [];
 let memoryTags = []; // master tag list
 let filmNotes = {}; // movieId -> personal note string
+let filmReviews = {}; // movieId -> { review, photo, title, poster, date }
 
 // ─── Save functions (cloud + local fallback) ─────────────────────────
 
@@ -122,6 +129,10 @@ const saveTags = async () => {
 
 const saveFilmNotes = async () => {
   try { localStorage.setItem("cinemaAtlasFilmNotes", JSON.stringify(filmNotes)); } catch {}
+};
+
+const saveFilmReviews = async () => {
+  try { localStorage.setItem("cinemaAtlasFilmReviews", JSON.stringify(filmReviews)); } catch {}
 };
 
 // ─── Cloud CRUD helpers ──────────────────────────────────────────────
@@ -304,6 +315,15 @@ const loadFilmNotes = () => {
   } catch { return {}; }
 };
 
+const loadFilmReviews = () => {
+  try {
+    const stored = localStorage.getItem("cinemaAtlasFilmReviews");
+    if (!stored) return {};
+    const parsed = JSON.parse(stored);
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch { return {}; }
+};
+
 const loadFilmLinks = () => {
   try {
     const stored = localStorage.getItem("cinemaAtlasFilmLinks");
@@ -348,8 +368,10 @@ const injectAuthUI = () => {
       filmMemoryLinks = loadFilmLinks();
       memoryTags = loadTags();
       filmNotes = loadFilmNotes();
+      filmReviews = loadFilmReviews();
       renderMemoryCollection();
       renderTimeline();
+      renderReviewCollection();
     });
   } else if (sb) {
     bar.innerHTML = `
@@ -2108,7 +2130,98 @@ const selectMovieFromSearch = async (movieSummary) => {
   const year = (movieSummary.release_date || "").slice(0, 4) || "Unknown year";
   selectedMovieMeta.textContent = `Selected: ${movieSummary.title} (${year})`;
 
+  enableReviewForm(movieSummary);
+
   await revealMovieOnMap(movieSummary.id, movieLocationInput.value.trim());
+};
+
+const enableReviewForm = (movieSummary) => {
+  const year = (movieSummary.release_date || "").slice(0, 4) || "";
+  reviewFilmHint.textContent = `Writing about: ${movieSummary.title}${year ? ` (${year})` : ""}`;
+  reviewText.disabled = false;
+  reviewPhotoFile.disabled = false;
+  reviewForm.querySelector("button[type='submit']").disabled = false;
+
+  // Pre-fill if review exists
+  const existing = filmReviews[movieSummary.id];
+  reviewText.value = existing?.review || "";
+  reviewPhotoFile.value = "";
+};
+
+const handleReviewSubmit = (event) => {
+  event.preventDefault();
+  const movieId = selectedMovieIdInput.value;
+  if (!movieId) return;
+
+  const review = reviewText.value.trim();
+  if (!review) return;
+
+  const photoFile = reviewPhotoFile.files?.[0];
+
+  const saveReview = (photoData) => {
+    const posterPath = selectedMovieSummary?.poster_path || activeMovieDetails?.poster_path || "";
+    filmReviews[movieId] = {
+      review,
+      photo: photoData || filmReviews[movieId]?.photo || null,
+      title: movieSearchInput.value || selectedMovieSummary?.title || "Unknown",
+      poster: posterPath ? `https://image.tmdb.org/t/p/w154${posterPath}` : null,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    saveFilmReviews();
+    renderReviewCollection();
+    reviewText.value = "";
+    reviewPhotoFile.value = "";
+    reviewFilmHint.textContent = "Review saved.";
+  };
+
+  if (photoFile) {
+    const reader = new FileReader();
+    reader.onload = () => saveReview(reader.result);
+    reader.readAsDataURL(photoFile);
+  } else {
+    saveReview(null);
+  }
+};
+
+const renderReviewCollection = () => {
+  reviewCollection.innerHTML = "";
+  const entries = Object.entries(filmReviews);
+  if (!entries.length) return;
+
+  entries
+    .sort((a, b) => (b[1].date || "").localeCompare(a[1].date || ""))
+    .forEach(([movieId, data]) => {
+      const card = document.createElement("div");
+      card.className = "review-card";
+      card.role = "listitem";
+
+      let photoHtml = "";
+      if (data.photo) {
+        photoHtml = `<img class="review-photo" src="${data.photo}" alt="Review photo">`;
+      } else if (data.poster) {
+        photoHtml = `<img class="review-photo review-poster" src="${data.poster}" alt="${data.title} poster">`;
+      }
+
+      card.innerHTML = `
+        ${photoHtml}
+        <div class="review-card-body">
+          <p class="review-card-title">${data.title}</p>
+          <p class="review-card-date">${data.date || ""}</p>
+          <p class="review-card-text">${data.review}</p>
+          <button class="line-button review-delete-btn" type="button">Delete</button>
+        </div>
+      `;
+
+      card.querySelector(".review-delete-btn").addEventListener("click", () => {
+        if (window.confirm(`Delete your review of "${data.title}"?`)) {
+          delete filmReviews[movieId];
+          saveFilmReviews();
+          renderReviewCollection();
+        }
+      });
+
+      reviewCollection.appendChild(card);
+    });
 };
 
 const handleMovieSearchInput = () => {
@@ -2408,6 +2521,7 @@ const bindUIEvents = () => {
       cinemaStatus.textContent = "Unable to map this film right now.";
     });
   });
+  reviewForm.addEventListener("submit", handleReviewSubmit);
   editMemoryButton.addEventListener("click", () => {
     const memoryId = memoryModal.dataset.memoryId;
     if (!memoryId) return;
@@ -3004,6 +3118,8 @@ const initialize = async () => {
     filmNotes = loadFilmNotes();
   }
 
+  filmReviews = loadFilmReviews();
+
   setActiveTab("memory");
   bindUIEvents();
   bindModalEvents();
@@ -3012,6 +3128,7 @@ const initialize = async () => {
   injectAuthUI();
   renderMemoryCollection();
   renderTimeline();
+  renderReviewCollection();
 
   if (!hasValidTmdbCredentials()) {
     selectedMovieMeta.textContent = "Film search needs API credentials — see script.js.";
