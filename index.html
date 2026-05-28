@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cinema Atlas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.23.1/mapbox-gl.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.1.0/mapbox-gl-geocoder.css" type="text/css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="is-intro">
+  <div class="film-grain" aria-hidden="true"></div>
+  <section class="intro-overlay" id="introOverlay" aria-label="Opening cinematic intro">
+    <div class="intro-quote">
+      <p>Some places we visit twice:</p>
+      <p>once in films,</p>
+      <p>once in real life.</p>
+    </div>
+  </section>
+
+  <main class="page-shell" id="mainInterface" aria-hidden="true">
+    <header class="top-nav" aria-label="Cinema Atlas navigation">
+      <div class="tab-switcher" role="tablist" aria-label="Atlas modes">
+        <button class="tab-button is-active" id="tab-memory" role="tab" aria-selected="true" aria-controls="memoryPanel" data-tab="memory">
+          Memory Archive
+        </button>
+        <button class="tab-button" id="tab-cinema" role="tab" aria-selected="false" aria-controls="cinemaPanel" data-tab="cinema">
+          Cinema Atlas
+        </button>
+      </div>
+    </header>
+
+    <section class="content-grid" id="contentGrid" data-mode="memory">
+      <section class="map-column" aria-label="Interactive world map">
+        <div class="map-frame">
+          <div id="map" class="map-canvas"></div>
+          <div class="token-note" id="tokenNote" hidden>
+            Add your Mapbox token in <code>js/main.js</code> to render the map.
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel-column">
+        <section class="side-panel memory-panel is-active" id="memoryPanel" role="tabpanel" aria-labelledby="tab-memory">
+          <p class="panel-kicker">Memory Archive</p>
+
+          <div class="selected-location">
+            <p class="meta-label">Selected location</p>
+            <p class="meta-value" id="selectedLocationText">None selected yet</p>
+          </div>
+
+          <form id="memoryForm" class="editorial-form">
+            <label>
+              Location or address
+              <div class="inline-row">
+                <input id="memoryLocationInput" type="text" placeholder="City, Country" required>
+                <button class="line-button" id="locateMemoryButton" type="button">Locate</button>
+              </div>
+            </label>
+
+            <label>
+              Memory object
+              <select id="memoryObjectType" required>
+                <option value="Postcard">Postcard</option>
+                <option value="Train Ticket">Train Ticket</option>
+                <option value="Polaroid">Polaroid</option>
+                <option value="Receipt">Receipt</option>
+                <option value="Metro Card">Metro Card</option>
+                <option value="Handwritten Note">Handwritten Note</option>
+              </select>
+            </label>
+
+            <label>
+              Upload photo
+              <input id="memoryPhotoFile" type="file" accept="image/*">
+            </label>
+
+            <label>
+              Diary text
+              <textarea id="memoryDiary" rows="4" placeholder="What did this place hold for you?" required></textarea>
+            </label>
+
+            <label>
+              Ambient music link
+              <input id="memoryMusic" type="url" placeholder="https://...">
+            </label>
+
+            <label>
+              Emotional note
+              <input id="memoryEmotion" type="text" placeholder="restless, luminous, quiet..." required>
+            </label>
+
+            <label>
+              Date
+              <input id="memoryDate" type="date" required>
+            </label>
+
+            <button class="soft-button" type="submit">Archive Memory</button>
+          </form>
+
+          <div class="collection-section">
+            <p class="meta-label">Collected objects</p>
+            <div class="collection-list" id="memoryCollection" role="list"></div>
+          </div>
+
+          <div class="collection-section timeline-section">
+            <p class="meta-label">Cinematic memory timeline</p>
+            <div class="memory-timeline" id="memoryTimeline" role="list"></div>
+          </div>
+        </section>
+
+        <section class="side-panel cinema-panel" id="cinemaPanel" role="tabpanel" aria-labelledby="tab-cinema">
+          <p class="panel-kicker">Cinema Atlas</p>
+
+          <form id="cinemaForm" class="editorial-form">
+            <label for="movieSearchInput">Movie title</label>
+            <div class="movie-search-shell">
+              <input id="movieSearchInput" type="text" placeholder="Search any film title..." autocomplete="off" spellcheck="false" required>
+              <input id="selectedMovieIdInput" type="hidden">
+              <div class="movie-search-results" id="movieSearchResults" hidden role="listbox" aria-label="Movie suggestions"></div>
+            </div>
+            <p class="status-line compact" id="selectedMovieMeta">No film selected yet.</p>
+
+            <label>
+              Optional city or location
+              <div class="inline-row">
+                <input id="movieLocationInput" type="text" placeholder="City, Country">
+                <button class="line-button" id="locateCinemaButton" type="button">Locate</button>
+              </div>
+            </label>
+
+            <button class="soft-button" type="submit">Reveal Film Markers</button>
+          </form>
+
+          <p class="status-line" id="cinemaStatus">Film markers will appear after submission.</p>
+
+          <div class="collection-section">
+            <p class="meta-label">Cinematic coordinates</p>
+            <div class="collection-list" id="cinemaCollection" role="list"></div>
+          </div>
+
+          <div class="collection-section" id="linkSection" hidden>
+            <p class="meta-label">Link your memories to this film</p>
+            <p class="status-line compact" id="linkHint">Connect your personal memories with cinematic locations.</p>
+            <div class="linkable-list" id="linkableMemories" role="list"></div>
+            <div class="linked-section" id="linkedSection" hidden>
+              <p class="meta-label linked-label">Linked memories</p>
+              <div class="collection-list" id="linkedMemories" role="list"></div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="memoryModal" hidden>
+    <article class="modal-sheet">
+      <button class="modal-close" type="button" data-close="memoryModal">Close</button>
+      <div class="modal-visual" id="memoryVisual"></div>
+      <div class="modal-copy">
+        <p class="modal-kicker" id="memoryMeta"></p>
+        <h3 id="memoryTitle"></h3>
+        <p id="memoryDiaryText" class="modal-body"></p>
+        <p id="memoryEmotionText" class="modal-body"></p>
+        <a id="memoryMusicLink" class="modal-link" href="#" target="_blank" rel="noreferrer noopener">Open ambient music</a>
+        <button id="editMemoryButton" class="line-button" type="button">Edit Memory</button>
+        <button id="deleteMemoryButton" class="line-button" type="button">Delete Memory</button>
+      </div>
+    </article>
+  </div>
+
+  <div class="modal-overlay" id="filmModal" hidden>
+    <article class="modal-sheet film-sheet">
+      <button class="modal-close" type="button" data-close="filmModal">Close</button>
+      <div class="modal-visual film-visual" id="filmVisual"></div>
+      <div class="modal-copy">
+        <p class="modal-kicker" id="filmMeta"></p>
+        <h3 id="filmTitle"></h3>
+        <blockquote id="filmQuote"></blockquote>
+        <p id="filmEmotion" class="modal-body"></p>
+        <div class="film-linked-memories" id="filmLinkedMemories" hidden>
+          <p class="meta-label">Your memories at this location</p>
+          <div class="linked-gallery" id="filmLinkedGallery"></div>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <div class="modal-overlay" id="overlapModal" hidden>
+    <article class="modal-sheet overlap-sheet">
+      <button class="modal-close" type="button" data-close="overlapModal">Close</button>
+      <div class="overlap-stage">
+        <div class="overlap-visuals" id="overlapVisuals">
+          <div class="overlap-layer overlap-reality" id="overlapReality"></div>
+          <div class="overlap-layer overlap-cinema" id="overlapCinema"></div>
+          <div class="overlap-divider"></div>
+        </div>
+        <div class="overlap-editorial">
+          <p class="modal-kicker" id="overlapMeta"></p>
+          <h3 id="overlapTitle"></h3>
+          <blockquote id="overlapQuote"></blockquote>
+          <p class="modal-body" id="overlapDiary"></p>
+          <p class="modal-body" id="overlapScene"></p>
+          <label class="blend-control" for="overlapBlend">
+            Blend Reality / Cinema
+            <input type="range" id="overlapBlend" min="0" max="100" value="50">
+          </label>
+          <a id="overlapMusicLink" class="modal-link" href="#" target="_blank" rel="noreferrer noopener">Play ambient soundtrack</a>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.23.1/mapbox-gl.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.1.0/mapbox-gl-geocoder.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
