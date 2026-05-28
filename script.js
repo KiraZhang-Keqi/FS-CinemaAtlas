@@ -2,7 +2,7 @@ const _cfg = window.CINEMA_ATLAS_CONFIG || {};
 const MAPBOX_ACCESS_TOKEN = _cfg.MAPBOX_ACCESS_TOKEN || "";
 const TMDB_V3_API_KEY = _cfg.TMDB_V3_API_KEY || "";
 const TMDB_READ_ACCESS_TOKEN = _cfg.TMDB_READ_ACCESS_TOKEN || "";
-const INTRO_DURATION_MS = 5600;
+const INTRO_DURATION_MS = 7200;
 const MAP_LANGUAGE = "en";
 
 // ─── Supabase ────────────────────────────────────────────────────────
